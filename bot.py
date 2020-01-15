@@ -433,10 +433,14 @@ class BotCLI(Cmd):
 
         if len(arg_split) < 3:
             print("provide a conn name")
+            return
         elif arg_split[0] == 'dm':
             m = popyo.utils.create_cli_message_dm(msg)
         elif arg_split[0] == 'chan':
             m = popyo.utils.create_cli_message_chan(msg)
+        else:
+            print("no such command")
+            return
 
         # create a temporary evt loop to execute the cmd
         loop = asyncio.new_event_loop()

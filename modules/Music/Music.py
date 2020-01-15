@@ -19,7 +19,8 @@ from decorators import *
 
 
 from .NetEase import NetEasePlugin
-# from .YouTube import YouTubePlugin
+from .NetEaseMusicCloud import NetEaseMusicCloudPlugin
+from .YouTube import YouTubePlugin, extract_vid
 from .SoundCloud import SoundCloudPlugin
 
 from .MusicPlugin import *
@@ -228,6 +229,108 @@ class Music(Module):
         # except Exception:
         #     self.logger.error(traceback.format_exc())
 
+    # @conditional_dm("Use this cmd in DM because it is noisy")
+    def _process_youtube(self, wrapper, message, provider, conn_name):
+        fopl = len(message.message.split()[0])
+        stripped_msg = message.message[fopl + 1:]
+        _, title, yurl, surl, duration = YouTubePlugin.play_search(stripped_msg)
+        if not yurl:
+            wrapper.reply("error code: " + str(duration))
+            return
+        self.bot.play_music(conn_name, title, surl)
+        time.sleep(YouTubePlugin.delay)
+        wrapper.reply_url("YouTube:", yurl)
+        time.sleep(YouTubePlugin.delay)
+        wrapper.reply_url("OutLink:", surl)
+        print("surl:", surl)
+        YouTubePlugin.pending_next(max(0, duration + YouTubePlugin.NextGap),
+                lambda: self._process_youtube_next(
+                    wrapper, message, provider, conn_name))
+
+    def _process_youtube_replay(self, wrapper, message, provider, conn_name):
+        if not YouTubePlugin.lastPlay:
+            wrapper.reply("no previous song")
+            return
+
+        prefix, title, yurl, surl, duration = YouTubePlugin.lastPlay
+        _, title, yurl, surl, duration = YouTubePlugin.play_search(title)
+
+        if not title:
+            if duration:
+                wrapper.reply('error code: ' + str(duration))
+                return
+            else:
+                wrapper.reply('No previous song!')
+                return
+        self.bot.play_music(conn_name, title, surl)
+        time.sleep(YouTubePlugin.delay)
+        wrapper.reply_url('Replay ' + "YouTube:", yurl)
+        time.sleep(YouTubePlugin.delay)
+        wrapper.reply_url("OutLink:", surl)
+        print("surl:", surl)
+        YouTubePlugin.cur_pending_next(max(0, duration + YouTubePlugin.NextGap),
+                lambda: self._process_youtube_next(
+                    wrapper, message, provider, conn_name))
+
+
+    def _process_youtube_next(self, wrapper, message, provider, conn_name):
+        prefix, title, yurl, surl, duration = YouTubePlugin.next(wrapper)
+        if not title:
+            if duration:
+                wrapper.reply('error code: ' + str(duration))
+                return
+            else:
+                wrapper.reply('No previous song!')
+                return
+        self.bot.play_music(conn_name, title, surl)
+        time.sleep(YouTubePlugin.delay)
+        wrapper.reply_url(prefix + "YouTube:", yurl)
+        time.sleep(YouTubePlugin.delay)
+        wrapper.reply_url("OutLink:", surl)
+        print("surl:", surl)
+        YouTubePlugin.cur_pending_next(max(0, duration + YouTubePlugin.NextGap),
+                lambda: self._process_youtube_next(
+                    wrapper, message, provider, conn_name))
+
+    def _process_youtube_list(self, wrapper, message, provider, conn_name):
+        lid = message.message[len("/list "):].strip()
+        if lid:
+            YouTubePlugin.play_list(lid, wrapper)
+            self._process_youtube_next(wrapper, message, provider, conn_name)
+        else:
+            if YouTubePlugin.playlist:
+                wrapper.reply_url('List URL',
+                    'https://www.youtube.com/watch?v={}&list={}'.format(
+                        extract_vid(YouTubePlugin.lastSearch), YouTubePlugin.lastLid))
+            else:
+                wrapper.reply('empty playlist')
+
+    def _process_netease(self, wrapper, message, provider, conn_name):
+        fopl = len(message.message.split()[0])
+        stripped_msg = message.message[fopl + 1:]
+        result = NetEaseMusicCloudPlugin.search(stripped_msg)
+        if isinstance(result, list):
+            msgs = ['使用 /sc {1, 2, 3...} 選播'] + ['{}. {}'.format(i, v[0]) for i, v in enumerate(result)]
+            #msgs = ['使用 /ne ' + stripped_msg + ' {1, 2, 3...} 選播'] + ['{}. {}'.format(i, v[0]) for i, v in enumerate(result)]
+            wrapper.reply('\n'.join(msgs[7:]))
+            time.sleep(YouTubePlugin.delay)
+            wrapper.reply('\n'.join(msgs[3:7]))
+            time.sleep(YouTubePlugin.delay)
+            wrapper.reply('\n'.join(msgs[:3]))
+        else:
+            title, surl = result
+            self.bot.play_music(conn_name, title, surl)
+
+    def _process_netease_select(self, wrapper, message, provider, conn_name):
+        fopl = len(message.message.split()[0])
+        stripped_msg = message.message[fopl + 1:]
+        if not stripped_msg.isdigit():
+            wrapper.reply('用數字選擇喔！')
+        if not NetEaseMusicCloudPlugin.searchList:
+            wrapper.reply('請先搜尋歌曲！')
+        title, surl = NetEaseMusicCloudPlugin.select(int(stripped_msg))
+        self.bot.play_music(conn_name, title, surl)
+
     @conditional_dm("Use this cmd in DM because it is noisy")
     def _process_remove(self, wrapper, message, conn_name, dm):
         mplayer = self._get_music_player(conn_name)
@@ -355,6 +458,60 @@ class Music(Module):
         return Module.CMD_VALID
 
     def handler(self, conn_name, message):
+        if message.message.startswith("/ne "):
+            self._process_netease(self.bot.get_wrapper(conn_name, message), message, NetEaseMusicCloudPlugin.name(), conn_name)
+        if message.message.startswith("/sc "):
+            self._process_netease_select(self.bot.get_wrapper(conn_name, message), message, NetEaseMusicCloudPlugin.name(), conn_name)
+        if message.message.startswith("/yt "):
+            self._process_youtube(self.bot.get_wrapper(conn_name, message), message, YouTubePlugin.name(), conn_name)
+        if message.message.startswith("/replay"):
+            self._process_youtube_replay(self.bot.get_wrapper(conn_name, message), message, YouTubePlugin.name(), conn_name)
+        if message.message.startswith("/next"):
+            self._process_youtube_next(self.bot.get_wrapper(conn_name, message), message, YouTubePlugin.name(), conn_name)
+        if message.message.startswith('/list'):
+            self._process_youtube_list(self.bot.get_wrapper(conn_name, message), message, YouTubePlugin.name(), conn_name)
+        if message.message.startswith('/stop'):
+            if 'list' in message.message:
+                YouTubePlugin.stop_list(self.bot.get_wrapper(conn_name, message))
+            else:
+                YouTubePlugin.stop(self.bot.get_wrapper(conn_name, message))
+        if message.message.startswith('/clear'):
+            YouTubePlugin.clear_pending(self.bot.get_wrapper(conn_name, message))
+        if message.message.startswith('/status'):
+            YouTubePlugin.status(self.bot.get_wrapper(conn_name, message))
+        if message.message.startswith('/help'):
+            YouTubePlugin.help(self.bot.get_wrapper(conn_name, message))
+
+        if message.message.startswith('/pending'):
+            if len(message.message.split()) == 1:
+                YouTubePlugin.pending_list(lambda menu:
+                    self.bot.get_wrapper(conn_name, message).reply(menu))
+            else:
+                YouTubePlugin.pending_keyword(
+                    message.message[len('/pending '):],
+                    lambda: self._process_youtube_next(
+                        self.bot.get_wrapper(conn_name, message),
+                        message, YouTubePlugin.name(), conn_name),
+                    lambda msg: self.bot.get_wrapper(conn_name, message)\
+                            .reply(msg))
+
+        if message.message.startswith('/pendlist'):
+            YouTubePlugin.pending_playlist(
+                    message.message[len('/pendlist '):],
+                    lambda: self._process_youtube_next(
+                        self.bot.get_wrapper(conn_name, message),
+                        message, YouTubePlugin.name(), conn_name),
+                    lambda msg: self.bot.get_wrapper(conn_name, message)\
+                            .reply(msg))
+
+        if message.message.startswith("/togauto"):
+            YouTubePlugin.enableAuto = not YouTubePlugin.enableAuto
+        if message.message.startswith("/disauto"):
+            YouTubePlugin.enableAuto = False
+            self.bot.get_wrapper(conn_name, message).reply("disable auto next")
+        if message.message.startswith("/auto"):
+            YouTubePlugin.enableAuto = True
+            self.bot.get_wrapper(conn_name, message).reply("enable auto next")
         if message.message.startswith("!neq "):
                 # self._process_search(conn_name, message, NetEasePlugin.name())
             self._process_search(self.bot.get_wrapper(conn_name, message), message, NetEasePlugin.name(),
@@ -366,7 +523,6 @@ class Music(Module):
         if message.message.startswith("!scq "):
             self._process_search(self.bot.get_wrapper(conn_name, message), message, SoundCloudPlugin.name(),
                                  conn_name, not self.conf[Music.CONF_RESPOND_IN_ROOM])
-
         if message.message == "!munext":
             self._process_next_page(self.bot.get_wrapper(conn_name, message), message, conn_name, not self.conf[Music.CONF_RESPOND_IN_ROOM])
         if message.message == "!muprev":

@@ -1,7 +1,7 @@
 # utility class for constructing messages arriving in JSON format
 import json
 import logging
-
+from pprint import pprint
 from .message import *
 from .user import *
 import time
@@ -57,9 +57,10 @@ def talk_to_msg(msg, room):
                 m = Message(msg['id'], msg['time'], Message_Type.message, room.users[msg['from']['id']], msg['message'])
 
     elif msg['type'] == 'music':
+        # no music url
         # self, id, time, sender, music_name, music_url, url, play_url, share_url
-        m = MusicMessage(msg['id'], msg['time'], room.users[msg['from']['id']], msg['music']['musicName'],
-                    msg['music']['musicURL'], msg['music']['url'], msg['music']['playURL'], msg['music']['shareURL'])
+        m = MusicMessage(msg['id'], msg['time'], room.users[msg['from']['id']], msg['music']['name'],
+                    msg['music']['playURL'], msg['music']['url'], msg['music']['playURL'], msg['music']['shareURL'])
 
     elif msg['type'] == 'me':
         # id, time, sender, content):

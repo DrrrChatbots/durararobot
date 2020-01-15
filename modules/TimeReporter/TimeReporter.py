@@ -6,6 +6,7 @@ from popyo import *
 from datetime import datetime
 from decorators import *
 import traceback
+import random
 
 # also an example of how I would write a non blocking loop that does something at certain intervals
 # todo: refactor to support multiple rooms, likely broken
@@ -50,17 +51,28 @@ class TimeReporter(Module):
 
     async def _broadcast_time_loop(self, conn_name):
         # keep track of the current task for this loop.
-        asyncio.Task.current_task().name = conn_name
+        try:
+            asyncio.Task.current_task().name = conn_name
+        except Exception as e:
+            print(e)
+        await asyncio.sleep(3, loop=self.get_event_loop(TimeReporter.KEY_EVT_LOOP))
         while conn_name in self.repeating_tasks:
-            self.bot.send(conn=conn_name, msg=datetime.utcnow().strftime(self.conf['time_format']))
+            #await asyncio.sleep(10, loop=self.get_event_loop(TimeReporter.KEY_EVT_LOOP))
+            if self.reportAgain:
+                self.bot.send(conn=conn_name, msg=random.choice(
+                    ['/me', '/roll', '過了十分鐘囉', '喵喵～', datetime.now().strftime(self.conf['time_format'])]))
+            else:
+                self.reportAgain = True
             await asyncio.sleep(self.conf.as_float(TimeReporter.CONF_REPORT_INTERVAL_KEY), loop=self.get_event_loop(TimeReporter.KEY_EVT_LOOP))
-
+            #await asyncio.sleep(self.conf.as_float(20), loop=self.get_event_loop(TimeReporter.KEY_EVT_LOOP))
+        print("end")
     # need to start in another thread so that don't exhaust one of the threads of the ThreadPoolExecutor
     def start_loop(self, conn_name):
         if conn_name in self.repeating_tasks:
             self.bot.send(conn=conn_name, msg="A time loop is already running. Call !time report stop first")
         else:
             self.repeating_tasks.add(conn_name)
+            print("start report time!!!")
             asyncio.run_coroutine_threadsafe(self._broadcast_time_loop(conn_name), self.get_event_loop(TimeReporter.KEY_EVT_LOOP))
 
     @require_dm("Can only be called by an admin in DM.")
@@ -89,7 +101,7 @@ class TimeReporter(Module):
         return Module.CMD_INVALID
 
     def handler(self, conn_name, message):
-
+        self.reportAgain = False
         if message.type == Message_Type.message:
             if message.message == "!time report":
                 self.start_loop(conn_name)
@@ -100,7 +112,7 @@ class TimeReporter(Module):
                 else:
                     self.bot.send(conn_name, "not in time loop")
             elif message.message == "!time now":
-                self.bot.send(conn=conn_name, msg=datetime.utcnow().strftime(self.conf['time_format'] ))
+                self.bot.send(conn=conn_name, msg=datetime.now().strftime(self.conf['time_format'] ))
 
         # if message.type == Message_Type.dm:
         if message.message.startswith("!time interval"):
@@ -125,8 +137,11 @@ class TimeReporter(Module):
             self.save_config()
         if TimeReporter.CONF_TIME_FORMAT_KEY not in self.conf:
             self.conf[TimeReporter.CONF_TIME_FORMAT_KEY] = '%Y-%m-%d %H:%M:%S'
+
             self.save_config()
 
         self.get_new_event_loop(TimeReporter.KEY_EVT_LOOP)
 
         self.repeating_tasks = set()
+        self.start_loop('default')
+        self.reportAgain = True

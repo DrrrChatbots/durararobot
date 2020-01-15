@@ -1,3 +1,4 @@
+#!/bin/env python3.6
 import bot
 import config_mgr
 

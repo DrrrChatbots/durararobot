@@ -32,10 +32,10 @@ class module_mgr:
             return False
         try:
             mod = importlib.import_module(self.mods_dir + "." + name)
-        except ModuleNotFoundError:
+        except ModuleNotFoundError as e:
             self.logger.error("module " + name + " not found")
+            print('error of:', e)
             return False
-
         try:
             cls = getattr(mod, name)
         except AttributeError:

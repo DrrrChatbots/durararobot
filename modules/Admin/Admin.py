@@ -1,8 +1,15 @@
 from modules.module import Module
 from decorators import *
+from popyo import *
 import functools
 import time
 import traceback
+from pprint import pprint
+import random
+from datetime import datetime
+#from pytg import Telegram
+from pytg.utils import coroutine
+import asyncio
 
 # DONE: allow drrr admins to do whatever they want
 
@@ -234,9 +241,29 @@ class Admin(Module):
         # return Module.CMD_INVALID
         return Module.CMD_VALID
 
-
     # admins can make the bot part, enforce rejoin if kicked... kick/ban others..
     def handler(self, conn_name, message):
+        self.log(message)
+        if message.type == Message_Type.join:
+            welcome_msg = [
+                    message.sender.name + " 你好！",
+                    message.sender.name + " 安安！",
+                    "/me 凝視 " + message.sender.name,
+                    "/me (抓抓" + message.sender.name,
+                    "/me 嗷嗷",
+                    "/me 喵？",
+                    ]
+            """
+            if message.sender.name in ['username1', 'username2']:
+                welcome_msg = ['custom welcome_msg']
+            """
+            selected = random.choice(welcome_msg)
+            self.bot.get_wrapper(conn_name, message).reply(selected)
+
+        if message.message == "!hello":
+            self.bot.get_wrapper(conn_name, message).reply("world!")
+        if message.message.startswith("/reply "):
+            self.bot.send(conn_name, message.message[len("/reply "):])
         if message.message == "!admin givemehost":
             self._givemehost(self.bot.get_wrapper(conn_name, message), message)
         elif message.message.startswith("!givehost "):
@@ -287,6 +314,8 @@ class Admin(Module):
         elif message.message.startswith("!fjoin "):
             self._process_fjoin(self.bot.get_wrapper(conn_name, message), message)
 
+    #async def start_receiver_loop(self):
+    #    self.receiver.message(self.tg_loop())
 
     def __init__(self, config_mgr, perms_mgr, bot):
         super(Admin, self).__init__(config_mgr, perms_mgr, bot)
@@ -297,4 +326,71 @@ class Admin(Module):
             self.save_config()
 
         self.onleave_single_callback_set = set()
+        self.logfile = open(datetime.now().strftime("log/%Y%m%d.log"), "a")
+        #self.tg = Telegram(
+        #	telegram="/usr/bin/telegram-cli",
+        #	pubkey_file="~/.telegram-cli/tg-server.pub")
+        #self.receiver = self.tg.receiver
+        #self.sender = self.tg.sender
+        #self.receiver.start()
+        #loop = self.get_new_event_loop("telegram")
+        #asyncio.run_coroutine_threadsafe(self.start_receiver_loop(), loop=loop)
 
+    def log(self, message):
+        typelist = {
+                Message_Type.message: 'msg',
+                Message_Type.dm: 'dm',
+                Message_Type.url: 'url',
+                Message_Type.dm_url: 'dm_url',
+        }
+
+        if message.type in [Message_Type.message, Message_Type.dm, Message_Type.url, Message_Type.dm_url]:
+            s = "{} {} {} {}{}\n".format(typelist[message.type],
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name), repr(message.message),
+                ' ' + repr(message.url) if message.type in [Message_Type.url, Message_Type.dm_url] else '')
+        elif message.type == Message_Type.me:
+            s = "{} {} {} {}\n".format('me',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name), repr(message.content))
+        elif message.type == Message_Type.join:
+            s = "{} {} {}\n".format('join',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name))
+        elif message.type == Message_Type.leave:
+            s = "{} {} {}\n".format('leave',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name))
+        elif message.type == Message_Type.new_host:
+            s = "{} {} {}\n".format('new_host',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name))
+        elif message.type == Message_Type.new_description:
+            s = "{} {} {} {}\n".format('new_desc',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name), repr(message.description))
+        elif message.type == Message_Type.system:
+            s = "{} {} {} {}\n".format('systm',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                'admin', repr(message.message))
+        elif message.type == Message_Type.ban:
+            s = "{} {} {} {}\n".format('ban',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name), repr(message.to))
+        elif message.type == Message_Type.unban:
+            s = "{} {} {} {}\n".format('unban',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name), repr(message.to))
+        elif message.type == Message_Type.kick:
+            s = "{} {} {} {}\n".format('kick',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name), repr(message.to))
+        elif message.type == Message_Type.music:
+            s = "{} {} {} {} {} {} {}\n".format('music',
+                datetime.now().strftime("%Y%m%d%H%M"),
+                repr(message.sender.name), repr(message.music_name), repr(message.music_url), repr(message.play_url), repr(message.share_url))
+        try:
+            self.logfile.write(s)
+        except Exception as e:
+            print(e, message, message.type, '\n\n\n\n\n\n')
+        self.logfile.flush()

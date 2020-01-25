@@ -1,8 +1,20 @@
 # durararobot
 
-durararobot which supports youtube player.
+Durararobot which supports youtube player.
 
-more details about the setting pleaase refer the alpha branch of the original framework.
+More details about the setting pleaase refer the alpha branch of the original framework.
+
+Usage:
+```
+pip3 install -r requirements.txt # only first time (may need sudo)
+python3 main.py
+```
+
+Sometimes you need update `youtube_dl`
+
+```
+pip3 install --upgrade youtube_dl
+```
 
 [![asciicast](https://asciinema.org/a/sH1VAIakIbTz1wdCPU8Lp9U2m.svg)](https://asciinema.org/a/sH1VAIakIbTz1wdCPU8Lp9U2m)
 

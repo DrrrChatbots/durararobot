@@ -66,6 +66,10 @@ def talk_to_msg(msg, room):
         # id, time, sender, content):
         m = MeMessage(msg['id'], msg['time'], room.users[msg['from']['id']], msg['content'])
 
+    elif msg['type'] == 'roll':
+        # id, time, sender, content):
+        m = MeMessage(msg['id'], msg['time'], room.users[msg['from']['id']], msg['content'])
+
     elif msg['type'] == 'new-host':
         m = NewHostMessage(msg['id'], msg['time'], room.users[msg['user']['id']])
 
@@ -103,5 +107,8 @@ def talk_to_msg(msg, room):
 
     elif msg['type'] == 'new-description':
         m = NewDescMessage(msg['id'], msg['time'], room.users[msg['from']['id']], msg['description'])
+
+    else:
+        print("\n\n invalid message type !!!!!! \n", msg, msg['type'], "\n\n")
 
     return m

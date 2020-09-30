@@ -33,7 +33,7 @@ def run_it_forever(loop):
 # !toggledj
 # !roomname [text]
 # !roomdesc [text]
- 
+
 class DcClient(discord.Client):
 
     async def on_ready(self):
@@ -42,47 +42,105 @@ class DcClient(discord.Client):
         print(self.user.id)
         print('------')
         self.home = self.get_channel(self.home)
+        if self.sub: self.sub = self.get_channel(self.sub)
+        if self.voice: self.voice = self.get_channel(self.voice)
         self.loop = asyncio.get_event_loop()
-        await self.home.send('ONLINE')
+        if self.sub: await self.sub.send('ONLINE')
+        else: await self.home.send('ONLINE')
 
     async def on_message(self, message):
         if message.author == self.user: return
 
-        if message.channel.id == self.home.id:
-            self.handle_text(message)
+        if self.sub:
+            if message.channel.id == self.home.id:
+                self.handle_chat(message)
+            elif message.channel.id == self.sub.id:
+                self.handle_cmd(message)
         else:
-            await message.channel.send('I heard you! {0.author.mention}'.format(message))
+            if message.content.split()[0] in ['/room', '/user', '/lounge', '/join', '/give', '/leave ']:
+                self.handle_cmd(message)
+            else:
+                self.handle_chat(message)
 
     async def direct_msg(self, user, message):
-        channel = await user.create_dm()
-        await channel.send(message)
+        if self.sub:
+            await self.sub.send(message)
+        else:
+            channel = await user.create_dm()
+            await channel.send(message)
 
     def send_msg(self, message, user = None):
         while isinstance(self.home, int):
             print("loop")
             pass
-        print("\n\npass the message\n\n")
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             # https://stackoverflow.com/questions/52232177/runtimeerror-timeout-context-manager-should-be-used-inside-a-task
-            if user:
+            if user or message == 'not in room':
                 asyncio.run_coroutine_threadsafe(self.direct_msg(user, message), self.loop)
             else:
                 asyncio.run_coroutine_threadsafe(self.home.send(message), self.loop)
             return
             #loop = asyncio.new_event_loop()
             #asyncio.set_event_loop(loop)
-        if user:
+        if user or message == 'not in room':
             loop.create_task(self.direct_msg(user, message))
         else:
             loop.create_task(self.home.send(message))
-        #self.home.send(message)
 
-    def __init__(self, home, handle_text):
+    async def play_music(self, user, title, url):
+        message = '{} 放了音樂 [{}]({})'.format(user, title, url)
+        await self.home.send(message)
+
+        return
+
+        if not self.voice: return
+
+        if not self.vclient:
+            self.vclient = await self.voice.connect()
+
+        if not self.vclient.is_connected():
+            await self.vclient.channel.connect()
+
+        if await self.vclient.is_playing():
+            await self.vclient.stop()
+
+        await self.vclient.play(discord.FFmpegPCMAudio(url))
+
+    async def stop_playing(self):
+        await self.vclient.disconnect()
+
+    def after_play(self, error=None):
+        if error:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                asyncio.run_coroutine_threadsafe(self.stop_playing(), self.loop)
+                return
+            loop.create_task(self.stop_playing())
+
+    def send_music(self, user, title, url):
+        while isinstance(self.home, int):
+            print("loop")
+            pass
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.run_coroutine_threadsafe(self.play_music(user, title, url), self.loop)
+            return
+        loop.create_task(self.play_music(user, title, url))
+
+
+    def __init__(self, home, handle_chat, handle_cmd, voice = None, sub = None):
         super(DcClient, self).__init__()
         self.home = home
-        self.handle_text = handle_text
+        self.handle_chat = handle_chat
+        self.handle_cmd  = handle_cmd
+        self.vclient = None
+        self.voice = voice
+        self.sub  = sub
 
 class DcCmder(Module):
 
@@ -293,25 +351,29 @@ class DcCmder(Module):
         # return Module.CMD_INVALID
         return Module.CMD_VALID
 
-    def handle_text(self, msg):
+    def handle_cmd(self, msg):
         try:
             if '/help' in msg.content:
                 self.sender.send_msg(
 """```
-command [args]   description
+command  [args]   description
+
+/* sauce-disc */
+
 /room                   display users
-/users                  display users
+/user                   display users
 /lounge  [lang]         show lounge
 /join    [room id]      join room
 /give    [name]         give host
+/leave                  leave room
+
+/* sauce-ctrl */
+
 /dm      [name]         dm user
 /url     [msg] [url]    send url msg
-/leave                  leave room
-!time report
-!time report stop
 ```""", msg.author)
 
-            elif '/users' in msg.content or '/room' in msg.content:
+            elif '/user' in msg.content or '/room' in msg.content:
                 if not self.inRoom:
                     self.sender.send_msg('not in room')
                 else:
@@ -320,7 +382,7 @@ command [args]   description
                     for key, user in room.users.items():
                         s += "%s#%s %s" % (user.name, user.tripcode if user.tripcode is not None else "", user.device)
                         s += '\n'
-                    self.sender.send_msg(s)
+                    self.sender.send_msg(s, msg.author)
             elif '/lounge' in msg.content:
                 lang = msg.content.split()
                 lang = lang[-1] if len(lang) > 1 else None
@@ -349,7 +411,7 @@ command [args]   description
                             print(e, 'error =>>>>')
                             try:
                                 host = i.get('host', 'none')
-                                if type(host) != 'str': host = host.get('name', 'none') 
+                                if type(host) != 'str': host = host.get('name', 'none')
                             except Exception as e:
                                 print('again', e)
 
@@ -387,7 +449,15 @@ command [args]   description
                         break
                 if not gave:
                     self.sender.send_msg("No one with that name is in the room.")
-            elif '/dm' in msg.content:
+        except Exception as e:
+            self.sender.send_msg(str(e))
+            print(e)
+            raise e
+
+
+    def handle_chat(self, msg):
+        try:
+            if '/dm' in msg.content:
                 if not self.inRoom:
                     self.sender.send_msg('not in room')
                 else:
@@ -421,6 +491,7 @@ command [args]   description
         except Exception as e:
             self.sender.send_msg(str(e))
             print(e)
+            raise e
 
     def forward(self, message):
         if message.type in [Message_Type.message, Message_Type.dm, Message_Type.url, Message_Type.dm_url]:
@@ -457,7 +528,8 @@ command [args]   description
         elif message.type == Message_Type.kick:
             self.sender.send_msg('{} 被踢了'.format(message.to))
         elif message.type == Message_Type.music:
-            self.sender.send_msg('{} 放了音樂 {} \n{}'.format(message.sender.name, message.music_name, message.play_url))
+            #self.sender.send_msg('{} 放了音樂 {} \n{}'.format(message.sender.name, message.music_name, message.play_url))
+            self.sender.send_music(message.sender.name, message.music_name, message.play_url)
 
     # admins can make the bot part, enforce rejoin if kicked... kick/ban others..
 
@@ -473,7 +545,7 @@ command [args]   description
 
         self.inRoom = False
 
-        self.dc = DcClient(self.conf['dc_channel'], self.handle_text)
+        self.dc = DcClient(self.conf['dc_channel'], self.handle_chat, self.handle_cmd, self.conf['dc_subchan'], self.conf['dc_subchan'])
         self.sender = self.dc
 
 

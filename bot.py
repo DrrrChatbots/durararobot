@@ -304,9 +304,9 @@ class bot:
 
         # todo: place modules to load at start in the config
         self.module_mgr = module_mgr.module_mgr(config_mgr, 'modules')
+        #modules_to_load = ["Admin", "Config", "Music", "MsgLogger"]
         modules_to_load = ["TimeReporter", "Admin", "Config", "Music", "MsgLogger"]
         #modules_to_load = ["TimeReporter", "Admin", "Config", "Music", "MsgLogger", "DcCmder"]
-        #modules_to_load = ["TimeReporter", "Admin", "Config", "Music", "MsgLogger", "TgCmder"]
         #modules_to_load = ["TimeReporter", "Admin", "Config", "Music", "MsgLogger", "TgCmder", "DcCmder"]
         for module in modules_to_load:
             self.module_mgr.load_module(module, self, True)

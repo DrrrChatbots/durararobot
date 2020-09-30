@@ -16,6 +16,7 @@ import asyncio
 import time
 
 import youtube_dl
+from youtube_search import YoutubeSearch
 
 def shorten_url(url):
     data = { "url": url }
@@ -93,10 +94,27 @@ def fetch_meta(url, vid=False):
     if vid: ydl_opts['forceid'] = True
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
-    
+
     return logger.data
 
-def urls_by_url(url, classname):
+def url_by_list_id(list_id):
+    return 'https://www.youtube.com/playlist?list=' + list_id
+
+def url_by_vid(vid):
+    return 'https://www.youtube.com/watch?v=' + vid
+
+def urls_by_term(textToSearch):
+    results = YoutubeSearch(textToSearch, max_results=10).to_dict()
+    return ['https://www.youtube.com' + e['url_suffix'] for e in results]
+
+def url_by_term(textToSearch):
+    try:
+        c = urls_by_term(textToSearch)[0]
+        return c
+    except Exception as e:
+        return []
+
+def urls_by_url(url, classname, retry=True):
     print("search url is:", url)
     response = urllib.request.urlopen(url)
     html = response.read()
@@ -105,18 +123,9 @@ def urls_by_url(url, classname):
             for vid in soup.findAll('a', href=True, attrs={'class': classname})
             if not vid['href'].startswith("https://")]
     if rtn: return rtn
+    elif retry: urls_by_url(url, classname, False)
     else: raise Exception("No song found by the keyword QwQ")
 
-def url_by_list_id(list_id):
-    return 'https://www.youtube.com/playlist?list=' + list_id
-
-def url_by_vid(vid):
-    return 'https://www.youtube.com/watch?v=' + vid
-
-def url_by_term(textToSearch):
-    query = urllib.parse.quote(textToSearch)
-    url = "https://www.youtube.com/results?search_query=" + query
-    return urls_by_url(url, 'yt-uix-tile-link')[0]
 
 cache_list = []
 def next_url(url):
@@ -143,7 +152,7 @@ class YouTubePlugin(MusicPlugin):
     CONF_API_KEY = "sc_api_key"
     CONF_USE_SSL = "endpoint_use_ssl"
     lastSearch = ""
-    enableAuto = False 
+    enableAuto = False
     pendingMark = ''
     enableList = False
     lastLid = ''
@@ -308,7 +317,7 @@ lastSearch:
         try:
             song = YouTubePlugin.search(keyword)
         except Exception as e:
-            return reply(e) 
+            return reply(e)
 
         YouTubePlugin.pendingList.append(song)
 

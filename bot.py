@@ -240,6 +240,9 @@ class bot:
 
         if stat == 200:
             resp_parsed = json.loads(resp)
+            if "message" in resp_parsed and resp_parsed["message"] == "Already logined":
+                print("Already logined")
+                return
             token = resp_parsed['token']
             self.logger.debug("token value " + token)
             (stat, resp, cookie_jar) = self.conn[conn_name].login(token)
@@ -305,7 +308,7 @@ class bot:
         # todo: place modules to load at start in the config
         self.module_mgr = module_mgr.module_mgr(config_mgr, 'modules')
         #modules_to_load = ["Admin", "Config", "Music", "MsgLogger"]
-        modules_to_load = ["TimeReporter", "Admin", "Config", "Music", "MsgLogger"]
+        modules_to_load = ["Config"]
         #modules_to_load = ["TimeReporter", "Admin", "Config", "Music", "MsgLogger", "DcCmder"]
         #modules_to_load = ["TimeReporter", "Admin", "Config", "Music", "MsgLogger", "TgCmder", "DcCmder"]
         for module in modules_to_load:

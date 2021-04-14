@@ -118,6 +118,7 @@ class connection:
         # The cookie jar implementation is provided by aiohttp, don't confuse it with http.cookiejar
         self.cookie_jar = aiohttp.CookieJar(unsafe=True)
         self.http_client_session = aiohttp.ClientSession(loop=self.event_loop, cookie_jar=self.cookie_jar, headers={'User-Agent': 'Bot'})
+        #self.http_client_session = aiohttp.ClientSession(loop=self.event_loop, cookie_jar=self.cookie_jar, headers={'User-Agent': 'Mobile'})
 
         self.sendQ = Queue(loop=self.event_loop)
         # self.event_loop.run_coroutine(self.get_login_token, self.event_loop, endpoint, lambda x: print(x))

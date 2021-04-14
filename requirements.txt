@@ -4,3 +4,4 @@ soundcloud==0.5.0
 beautifulsoup4==4.8.2
 pytg==0.4.10
 youtube_dl
+youtube_search

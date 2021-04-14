@@ -263,7 +263,7 @@ class TgCmder(Module):
 /users  \t      \t     \t\t\t\tdisplay users
 /lounge \t[lang]\t \t\t\t\tshow lounge
 /join   \t[room id]\t\t\t\tjoin room
-/give   \t[name]   \t\t\t\tdm user
+/give   \t[name]   \t\t\t\tgive host
 /dm     \t[name]   \t\t\tdm user
 /url    \t[msg]\t[url]\t\t\tsend url msg
 /leave  \t      \t     \t\t\t\t\t  leave room

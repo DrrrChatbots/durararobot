@@ -303,7 +303,7 @@ command [args]   description
 /users                  display users
 /lounge  [lang]         show lounge
 /join    [room id]      join room
-/give    [name]         dm user
+/give    [name]         give host
 /dm      [name]         dm user
 /url     [msg] [url]    send url msg
 /leave                  leave room

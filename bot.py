@@ -9,6 +9,7 @@ import module_mgr
 import perms_mgr
 import traceback
 import popyo
+import time
 
 from modules.module import Module
 
@@ -139,47 +140,67 @@ class bot:
             # return self._conn
             return self._bot.conn[self._conn]
 
+    def do_method(self, method):
+
+        self.mqueue.append(method)
+
+        if self.mlock: return
+        self.mlock = True
+
+        if time.time() - self.prevTime <= 1.5:
+            time.sleep(1.5)
+
+        while len(self.mqueue):
+            todo = self.mqueue.pop(0)
+            todo()
+            if len(self.mqueue):
+                time.sleep(1.5)
+
+        self.prevTime = time.time()
+        self.mlock = False
+
+    # the dispatch to do_method below
     def send(self, conn, msg):
-        self.conn[conn].send(msg)
+        self.do_method(lambda: self.conn[conn].send(msg))
 
     def action(self, conn, msg):
-        self.conn[conn].send("/me "+msg)
+        self.do_method(lambda: self.conn[conn].send("/me "+msg))
 
     def send_url(self, conn, msg, url):
-        self.conn[conn].send_url(msg, url)
+        self.do_method(lambda:  self.conn[conn].send_url(msg, url))
 
     def dm(self, conn, uid, msg):
-        self.conn[conn].dm(uid, msg)
+        self.do_method(lambda:  self.conn[conn].dm(uid, msg))
 
     def dm_url(self, conn, uid, msg, url):
         pass
 
     def play_music(self, conn, name, url):
-        self.conn[conn].play_music(name, url)
+        self.do_method(lambda:  self.conn[conn].play_music(name, url))
 
     def handover_host(self, conn, uid):
-        self.conn[conn].handover_host(uid)
+        self.do_method(lambda:  self.conn[conn].handover_host(uid))
 
     def kick(self, conn, uid):
-        self.conn[conn].kick(uid)
+        self.do_method(lambda:  self.conn[conn].kick(uid))
 
     def ban(self, conn, uid):
-        self.conn[conn].ban(uid)
+        self.do_method(lambda:  self.conn[conn].ban(uid))
 
     def unban(self, conn, uid):
-        self.conn[conn].unban(uid)
+        self.do_method(lambda:  self.conn[conn].unban(uid))
 
     def report_and_ban(self, conn, uid):
-        self.conn[conn].report_and_ban(uid)
+        self.do_method(lambda:  self.conn[conn].report_and_ban(uid))
 
     def set_room_name(self, conn, name):
-        self.conn[conn].set_room_name(name)
+        self.do_method(lambda:  self.conn[conn].set_room_name(name))
 
     def set_room_desc(self, conn, desc):
-        self.conn[conn].set_room_desc(desc)
+        self.do_method(lambda:  self.conn[conn].set_room_desc(desc))
 
     def set_dj_mode(self, conn, is_dj_mode):
-        self.conn[conn].set_dj_mode(is_dj_mode)
+        self.do_method(lambda:  self.conn[conn].set_dj_mode(is_dj_mode))
 
 ### sending ends here
 
@@ -321,6 +342,9 @@ class bot:
 
 
         self.conn = {}
+        self.mlock = False
+        self.mqueue = [] # method queue
+        self.prevTime = time.time()
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
 

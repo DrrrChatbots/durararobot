@@ -1,4 +1,4 @@
-aiohttp==2.3.3
+aiohttp==3.7.4.post0
 configobj==5.0.6
 soundcloud==0.5.0
 beautifulsoup4==4.8.2
